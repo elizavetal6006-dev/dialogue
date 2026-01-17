@@ -1,0 +1,170 @@
+import streamlit as st
+import streamlit.components.v1 as components
+
+# Настройка страницы
+st.set_page_config(page_title="Инсталляция", page_icon="💻", layout="wide")
+
+# Заголовок (можно убрать, если не нужно)
+st.title("Инсталляция: Диалог двух экранов")
+
+# HTML + CSS + JS код
+html_code = """
+<style>
+body {
+    margin: 0;
+    background: black;
+}
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 120px;
+    width: 100vw;
+    height: 100vh;
+}
+.screen {
+    width: 360px;
+    height: 460px;
+    background: white;
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #000;
+    padding: 24px;
+    padding-top: 40px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+    word-wrap: break-word;
+}
+.cursor {
+    display: inline-block;
+    width: 8px;
+    animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+    50% { opacity: 0; }
+}
+</style>
+
+<div class="container">
+    <div class="screen" id="left"></div>
+    <div class="screen" id="right"></div>
+</div>
+
+<script>
+const left = document.getElementById("left");
+const right = document.getElementById("right");
+
+const cursor = document.createElement("span");
+cursor.className = "cursor";
+cursor.textContent = "|";
+
+const symbols = [
+    "0","1","2","3","4","5","6","7","8","9",
+    "A","B","C","D","X","Y","Z",
+    "+","-","*","/","=",
+    "@","#","$","%","&",
+    "∆","Ω","λ","π","∑",
+    "<",">","(",")","[","]","{","}",
+    ".",",",";",":","_","~","^"," "
+];
+
+let patternA = [];
+let patternB = [];
+let active = "left";
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, dur) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = "square";
+    osc.frequency.value = freq;
+    gain.gain.value = 0.04;
+    osc.start();
+    osc.stop(audioCtx.currentTime + dur);
+}
+
+function moveCursor(target) {
+    if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+    target.appendChild(cursor);
+}
+
+function randomChar(myPattern, otherPattern) {
+    const r = Math.random();
+    if (r < 0.5 && myPattern.length)
+        return symbols[myPattern[Math.floor(Math.random()*myPattern.length)] % symbols.length];
+    if (r < 0.85 && otherPattern.length)
+        return symbols[otherPattern[Math.floor(Math.random()*otherPattern.length)] % symbols.length];
+    return symbols[Math.floor(Math.random()*symbols.length)];
+}
+
+async function typeBlock(target, idle, myPattern, otherPattern) {
+    moveCursor(idle);
+    const lines = Math.floor(Math.random()*6) + 1;
+    let speedMode = "normal"; // normal | fast | slow
+
+    for (let l = 0; l < lines; l++) {
+        let length = Math.floor(Math.random()*50) + 20;
+        for (let i = 0; i < length; i++) {
+            if (Math.random() < 0.02) {
+                const r = Math.random();
+                if (r < 0.33) speedMode = "fast";
+                else if (r < 0.66) speedMode = "slow";
+                else speedMode = "normal";
+            }
+
+            const ch = randomChar(myPattern, otherPattern);
+            target.textContent += ch;
+
+            myPattern.push(symbols.indexOf(ch));
+            if (myPattern.length > 100) myPattern.shift();
+
+            target.scrollTop = target.scrollHeight;
+
+            playTone(
+                260 + Math.random()*240,
+                0.025 + Math.random()*0.03
+            );
+
+            let delay;
+            if (speedMode === "fast") delay = 3 + Math.random()*15;
+            else if (speedMode === "slow") delay = 180 + Math.random()*300;
+            else {
+                delay = 20 + Math.random()*120;
+                if (Math.random() < 0.15) delay += 250;
+            }
+
+            await new Promise(r => setTimeout(r, delay));
+        }
+        target.textContent += "\\n";
+        await new Promise(r => setTimeout(r, 120));
+    }
+
+    target.textContent += "\\n\\n";
+    target.scrollTop = target.scrollHeight;
+}
+
+async function dialogue() {
+    while (true) {
+        await new Promise(r => setTimeout(r, 500 + Math.random()*4500));
+
+        if (active === "left") {
+            await typeBlock(left, right, patternA, patternB);
+            active = "right";
+        } else {
+            await typeBlock(right, left, patternB, patternA);
+            active = "left";
+        }
+    }
+}
+
+dialogue();
+</script>
+"""
+
+# Вставляем HTML/JS в Streamlit
+components.html(html_code, height=700)  # высоту можно менять под свой экран
